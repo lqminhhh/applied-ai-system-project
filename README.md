@@ -17,18 +17,44 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+Each song in the catalog is described by a set of features. The recommender compares those features against what the user likes, assigns a score, and returns the top matches.
 
-Some prompts to answer:
+**What each `Song` stores:**
+- `genre` and `mood` — categorical labels (e.g. "lofi", "chill")
+- `energy` — how intense or calm the song feels (0.0 to 1.0)
+- `acousticness` — how organic vs. electronic it sounds (0.0 to 1.0)
+- `valence`, `danceability`, `tempo_bpm` — additional audio characteristics
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+**What `UserProfile` stores:**
+- `favorite_genre` — the genre the user prefers most
+- `favorite_mood` — the mood the user wants (e.g. "focused", "happy")
+- `target_energy` — their ideal energy level (0.0 to 1.0)
+- `likes_acoustic` — whether they prefer acoustic or electronic sound
 
-You can include a simple diagram or bullet list if helpful.
+**How the `Recommender` scores each song:**
 
+The score is a weighted sum of four rules, adding up to 1.0:
+
+| Rule | How it works | Weight |
+|---|---|---|
+| Genre match | +1 if song genre equals user's favorite genre, else 0 | 0.30 |
+| Mood match | +1 if song mood equals user's favorite mood, else 0 | 0.25 |
+| Energy proximity | `1 - abs(song.energy - user.target_energy)` | 0.25 |
+| Acoustic preference | `song.acousticness` if user likes acoustic, else `1 - song.acousticness` | 0.20 |
+
+**How the top songs are chosen:**
+
+Every song in the catalog gets a score between 0.0 and 1.0. The recommender sorts all songs by score (highest first) and returns the top `k` results (default: 5).
+
+![alt text](image-1.png)
+
+> **Bias note:** Genre and mood use hard binary matching (match = full points, no match = zero), so songs outside the user's favorite genre or mood are heavily penalized even if they are otherwise a near-perfect fit on energy and acoustics — this makes the system prone to over-recommending within a narrow slice of the catalog.
+
+![alt text](image.png)
+![alt text](image-2.png)
+![alt text](image-3.png)
+![alt text](image-4.png)
+![alt text](image-5.png)
 ---
 
 ## Getting Started
