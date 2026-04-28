@@ -1,237 +1,226 @@
-# 🎵 Music Recommender Simulation
+# AI Playlist Assistant
 
-## Project Summary
+## Title and Summary
 
-In this project you will build and explain a small music recommender system.
+AI Playlist Assistant is a music recommendation app that turns a natural-language request like "quiet Sunday morning coffee music" into a small, explainable playlist. It combines a deterministic recommender with Gemini-powered language understanding so the system can parse intent, retrieve relevant songs from a catalog, rank them transparently, and explain why each recommendation was chosen.
 
-Your goal is to:
+This project matters because it shows how to build an AI feature that is useful, testable, and grounded in real application logic instead of acting like a standalone chatbot. The LLM does not replace the recommender; it improves how users interact with it and how the system explains its decisions.
 
-- Represent songs and a user "taste profile" as data
-- Design a scoring rule that turns that data into recommendations
-- Evaluate what your system gets right and wrong
-- Reflect on how this mirrors real world AI recommenders
+## Original Project
 
-Replace this paragraph with your own summary of what your version does.
+This project started as **Music Recommender Simulation**, a rule-based recommender from Modules 1-3. The original goal was to model songs and user taste profiles as structured data, score songs with hand-written rules, and reflect on how simple recommendation systems can still encode bias and tradeoffs.
 
----
+In its original form, the app matched songs to users using genre, mood, energy, and acoustic preference. It was useful for demonstrating transparent scoring, but it only supported structured inputs and did not feel like a full AI application.
 
-## How The System Works
+## What the Upgraded Project Does
 
-Each song in the catalog is described by a set of features. The recommender compares those features against what the user likes, assigns a score, and returns the top matches.
+The upgraded version turns the original recommender into an AI-assisted playlist system with:
 
-**What each `Song` stores:**
-- `genre` and `mood` — categorical labels (e.g. "lofi", "chill")
-- `energy` — how intense or calm the song feels (0.0 to 1.0)
-- `acousticness` — how organic vs. electronic it sounds (0.0 to 1.0)
-- `valence`, `danceability`, `tempo_bpm` — additional audio characteristics
+- natural-language input
+- retrieval over the song catalog
+- Gemini-powered profile parsing
+- Gemini-powered grounded recommendation explanations
+- fallback behavior when the API is unavailable or the query is vague
+- a Streamlit UI and CLI interface
 
-**What `UserProfile` stores:**
-- `favorite_genre` — the genre the user prefers most
-- `favorite_mood` — the mood the user wants (e.g. "focused", "happy")
-- `target_energy` — their ideal energy level (0.0 to 1.0)
-- `likes_acoustic` — whether they prefer acoustic or electronic sound
+## Architecture Overview
 
-**How the `Recommender` scores each song:**
+The system has five main parts:
 
-The score is a weighted sum of four rules, adding up to 1.0:
+1. **User Interface**
+   The user enters a natural-language playlist request in Streamlit or through the CLI.
 
-| Rule | How it works | Weight |
-|---|---|---|
-| Genre match | +1 if song genre equals user's favorite genre, else 0 | 0.30 |
-| Mood match | +1 if song mood equals user's favorite mood, else 0 | 0.25 |
-| Energy proximity | `1 - abs(song.energy - user.target_energy)` | 0.25 |
-| Acoustic preference | `song.acousticness` if user likes acoustic, else `1 - song.acousticness` | 0.20 |
+2. **Profile Parsing**
+   Gemini reads the request and converts it into a structured `UserProfile` with:
+   - `favorite_genre`
+   - `favorite_mood`
+   - `target_energy`
+   - `likes_acoustic`
 
-**How the top songs are chosen:**
+3. **Retrieval Layer**
+   The app searches `data/songs.csv` for candidate songs using metadata-aware keyword matching plus profile-aware scoring.
 
-Every song in the catalog gets a score between 0.0 and 1.0. The recommender sorts all songs by score (highest first) and returns the top `k` results (default: 5).
+4. **Ranking Layer**
+   The deterministic recommender scores candidates by genre match, mood match, energy proximity, and acoustic fit. This keeps the final ranking transparent and testable.
 
-![alt text](image-1.png)
+5. **Explanation Layer**
+   Gemini receives only the user query, parsed profile, retrieved songs, and final ranked recommendations. It then generates a grounded explanation for why the picks fit.
 
-> **Bias note:** Genre and mood use hard binary matching (match = full points, no match = zero), so songs outside the user's favorite genre or mood are heavily penalized even if they are otherwise a near-perfect fit on energy and acoustics — this makes the system prone to over-recommending within a narrow slice of the catalog.
+High-level flow:
 
-![alt text](image.png)
-![alt text](image-2.png)
-![alt text](image-3.png)
-![alt text](image-4.png)
-![alt text](image-5.png)
----
+```text
+User Query
+   -> Gemini profile parser
+   -> candidate song retrieval
+   -> deterministic ranking
+   -> Gemini grounded explanation
+   -> playlist + caveats shown to user
+```
 
-## Getting Started
+Architecture diagram:
 
-### Setup
+![AI Playlist Assistant architecture](assets/architecture.png)
 
-1. Create a virtual environment (optional but recommended):
+## Repo Structure
 
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate      # Mac or Linux
-   .venv\Scripts\activate         # Windows
+```text
+app/
+  cli.py
+  ui.py
+assets/
+  architecture.png
+data/
+  songs.csv
+model-card.md
+src/
+  music_assistant/
+    catalog.py
+    config.py
+    explanation.py
+    models.py
+    pipeline.py
+    ranking.py
+    retrieval.py
+    llm/
+      gemini_client.py
+      prompts.py
+tests/
+  test_pipeline.py
+  test_ranking.py
+  test_retrieval.py
+```
 
-2. Install dependencies
+## Setup Instructions
+
+1. Create and activate a virtual environment.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+2. Install dependencies.
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Run the app:
+3. Create an environment file.
 
 ```bash
-python -m src.main
+cp .env.example .env
 ```
 
-### Running Tests
-
-Run the starter tests with:
+4. Add your Gemini API key to `.env`.
 
 ```bash
-pytest
+GEMINI_API_KEY=your_api_key_here
 ```
 
-You can add more tests in `tests/test_recommender.py`.
+5. Run the Streamlit app.
 
----
+```bash
+streamlit run app/ui.py
+```
 
-## Experiments You Tried
+6. Or run the CLI version.
 
-Use this section to document the experiments you ran. For example:
+```bash
+python app/cli.py "I need calm acoustic music for studying"
+```
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+7. Run tests.
 
----
+```bash
+python -m pytest
+```
 
-## Limitations and Risks
+## Sample Interactions
 
-Summarize some limitations of your recommender.
+### Example 1: Quiet morning playlist
 
-Examples:
+Input:
 
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
+```text
+quiet Sunday morning coffee music
+```
 
-You will go deeper on this in your model card.
+Example output behavior:
 
----
+- Parsed profile leans toward low-energy, acoustic, calm listening
+- Retrieved songs include `Library Rain`, `Coffee Shop Stories`, and `Moonlight Sonata Redux`
+- Top recommendations include songs with low energy and high acousticness
+- The explanation notes that the system prioritized a peaceful, cozy atmosphere
+
+### Example 2: Focus playlist
+
+Input:
+
+```text
+I need music for deep focus while coding
+```
+
+Example output behavior:
+
+- Parsed profile leans toward `lofi` or similarly calm genres, low-to-medium energy, and focused/chill mood
+- Retrieved songs include `Focus Flow` and `Midnight Coding`
+- Recommendations favor songs with low energy and steady acoustic characteristics
+- The explanation describes why those tracks support concentration better than high-energy songs
+
+### Example 3: Workout playlist
+
+Input:
+
+```text
+high-energy workout songs
+```
+
+Example output behavior:
+
+- Parsed profile leans toward intense mood, higher target energy, and more electronic sound
+- Retrieved songs include `Gym Hero` and `Storm Runner`
+- Recommendations favor tracks with high energy and intense/confident moods
+- The explanation highlights the system's preference for energetic songs that fit a workout context
+
+## Design Decisions
+
+I built the system this way to keep the AI meaningful but controlled.
+
+- **LLM for understanding, rules for ranking**
+  Gemini handles ambiguous natural-language input and writes explanations, but the actual ranking stays deterministic. This makes the final recommendations easier to test and debug.
+
+- **Grounded explanation instead of open-ended generation**
+  The explanation model only sees retrieved songs and final recommendations. That reduces hallucination risk and makes the AI more trustworthy.
+
+- **Simple retrieval first**
+  I used a lightweight metadata-aware retrieval strategy instead of a full vector database because the dataset is small and the main goal is clarity, reliability, and a clean portfolio project.
+
+- **Fallbacks and warnings**
+  If the Gemini API fails or no key is configured, the system still works. That tradeoff makes the project more robust and easier for another person to run.
+
+## Testing Summary
+
+What worked:
+
+- The refactored ranking logic is covered by unit tests
+- Retrieval is tested for representative scenarios like study, workout, and quiet morning prompts
+- The pipeline is tested for fallback behavior, empty input, and catalog-limit warnings
+- The Streamlit app and CLI entrypoints both run successfully
+
+What did not work perfectly:
+
+- The catalog is still small, so some prompts can only return "closest available matches"
+- Retrieval is heuristic rather than embedding-based, so it is simpler than a production music search system
+- Real Gemini output quality still depends on prompt phrasing and API availability
+
+What I learned:
+
+- A small AI system becomes much stronger when the LLM is grounded in retrieved application data
+- Deterministic components are still valuable inside AI products because they improve reliability and explainability
+- Good fallbacks and logging are part of building a trustworthy AI feature, not just optional extras
 
 ## Reflection
 
-Read and complete `model_card.md`:
+This project taught me that adding AI to an application is not just about calling a model API. The more important work is deciding where the model should help, where deterministic logic should stay in control, and how to make the final system understandable when something goes wrong.
 
-[**Model Card**](model_card.md)
-
-Write 1 to 2 paragraphs here about what you learned:
-
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
-
-
----
-
-## 7. `model_card_template.md`
-
-Combines reflection and model card framing from the Module 3 guidance. :contentReference[oaicite:2]{index=2}  
-
-```markdown
-# 🎧 Model Card - Music Recommender Simulation
-
-## 1. Model Name
-
-Give your recommender a name, for example:
-
-> VibeFinder 1.0
-
----
-
-## 2. Intended Use
-
-- What is this system trying to do
-- Who is it for
-
-Example:
-
-> This model suggests 3 to 5 songs from a small catalog based on a user's preferred genre, mood, and energy level. It is for classroom exploration only, not for real users.
-
----
-
-## 3. How It Works (Short Explanation)
-
-Describe your scoring logic in plain language.
-
-- What features of each song does it consider
-- What information about the user does it use
-- How does it turn those into a number
-
-Try to avoid code in this section, treat it like an explanation to a non programmer.
-
----
-
-## 4. Data
-
-Describe your dataset.
-
-- How many songs are in `data/songs.csv`
-- Did you add or remove any songs
-- What kinds of genres or moods are represented
-- Whose taste does this data mostly reflect
-
----
-
-## 5. Strengths
-
-Where does your recommender work well
-
-You can think about:
-- Situations where the top results "felt right"
-- Particular user profiles it served well
-- Simplicity or transparency benefits
-
----
-
-## 6. Limitations and Bias
-
-Where does your recommender struggle
-
-Some prompts:
-- Does it ignore some genres or moods
-- Does it treat all users as if they have the same taste shape
-- Is it biased toward high energy or one genre by default
-- How could this be unfair if used in a real product
-
----
-
-## 7. Evaluation
-
-How did you check your system
-
-Examples:
-- You tried multiple user profiles and wrote down whether the results matched your expectations
-- You compared your simulation to what a real app like Spotify or YouTube tends to recommend
-- You wrote tests for your scoring logic
-
-You do not need a numeric metric, but if you used one, explain what it measures.
-
----
-
-## 8. Future Work
-
-If you had more time, how would you improve this recommender
-
-Examples:
-
-- Add support for multiple users and "group vibe" recommendations
-- Balance diversity of songs instead of always picking the closest match
-- Use more features, like tempo ranges or lyric themes
-
----
-
-## 9. Personal Reflection
-
-A few sentences about what you learned:
-
-- What surprised you about how your system behaved
-- How did building this change how you think about real music recommenders
-- Where do you think human judgment still matters, even if the model seems "smart"
-
+It also reinforced that AI product design is full of tradeoffs. A fully LLM-driven recommender might feel more flexible, but it would be harder to test and easier to hallucinate. By keeping retrieval and ranking explicit, I was able to build something more practical, more transparent, and easier to explain to both users and future employers reviewing the code.
